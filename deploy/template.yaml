@@ -1,0 +1,180 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Kinloop — autonomous family caregiving agent (Strands Agents SDK).
+  Deploys a Lambda function triggered once daily by EventBridge Scheduler,
+  backed by DynamoDB, with a hard monthly budget alarm. Deliberately avoids
+  Bedrock AgentCore Runtime/Memory/Observability for the always-on path —
+  see docs/text_description.md for the cost reasoning.
+
+Parameters:
+  BedrockModelId:
+    Type: String
+    Default: amazon.nova-lite-v1:0
+    Description: Cheap, capable Bedrock model for the agents.
+  ScheduleExpression:
+    Type: String
+    Default: "cron(0 13 * * ? *)"
+    Description: Daily at 13:00 UTC (~8am ET). Adjust to your family's timezone.
+  BudgetAlertEmail:
+    Type: String
+    Description: Email address to receive AWS Budget threshold alerts.
+  MonthlyBudgetLimitUSD:
+    Type: Number
+    Default: 20
+    Description: Hard monthly budget ceiling that triggers alert emails at 50/80/100%.
+
+Globals:
+  Function:
+    Timeout: 60
+    MemorySize: 512
+    Runtime: python3.12
+
+Resources:
+
+  # ---------------------------------------------------------------------
+  # DynamoDB — pay-per-request (no idle cost), one table per collection
+  # ---------------------------------------------------------------------
+  MedicationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: kinloop_medications
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: name
+          KeyType: HASH
+
+  AppointmentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: kinloop_appointments
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: title
+          AttributeType: S
+      KeySchema:
+        - AttributeName: title
+          KeyType: HASH
+
+  DeadlinesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: kinloop_deadlines
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: name
+          KeyType: HASH
+
+  ActivityLogTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: kinloop_activity_log
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: timestamp
+          KeyType: HASH
+
+  PendingDecisionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: kinloop_pending_decisions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  # ---------------------------------------------------------------------
+  # Lambda — the entire agent runtime. Only runs (and only bills) for the
+  # few seconds/day EventBridge invokes it.
+  # ---------------------------------------------------------------------
+  KinloopFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: kinloop-daily-run
+      CodeUri: ../src/
+      Handler: kinloop.lambda_handler.handler
+      Environment:
+        Variables:
+          KINLOOP_MODEL_ID: !Ref BedrockModelId
+          KINLOOP_DATA_BACKEND: dynamodb
+          KINLOOP_TABLE_PREFIX: kinloop
+          KINLOOP_NOTIFY_CHANNEL: console
+          KINLOOP_MAX_CALLS: "8"
+      Policies:
+        - Statement:
+            - Sid: BedrockInvokeOnly
+              Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}::foundation-model/${BedrockModelId}"
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MedicationsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AppointmentsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DeadlinesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ActivityLogTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PendingDecisionsTable
+      Events:
+        DailySchedule:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: !Ref ScheduleExpression
+            Description: Kinloop's daily unattended check-in
+
+  # ---------------------------------------------------------------------
+  # Budget alarm — the cost safety net. Fires BEFORE you get surprised.
+  # ---------------------------------------------------------------------
+  KinloopBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: kinloop-monthly-budget
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetLimitUSD
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 50
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref BudgetAlertEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref BudgetAlertEmail
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+          Subscribers:
+            - SubscriptionType: EMAIL
+              Address: !Ref BudgetAlertEmail
+
+Outputs:
+  FunctionName:
+    Value: !Ref KinloopFunction
+  InvokeManuallyCommand:
+    Value: !Sub "aws lambda invoke --function-name ${KinloopFunction} --payload '{}' out.json"

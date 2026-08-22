@@ -1,0 +1,10 @@
+strands-agents>=1.0.0
+strands-agents-tools>=0.1.0
+boto3>=1.34.0
+
+# dev / test only
+pytest>=8.0.0
+
+# optional — only needed for deploy/agentcore/app.py (see deploy/README.md)
+# bedrock-agentcore
+# bedrock-agentcore-starter-toolkit

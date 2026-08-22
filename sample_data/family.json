@@ -1,0 +1,12 @@
+{
+  "patient": {
+    "name": "Eleanor Whitfield",
+    "age": 78,
+    "conditions": ["type 2 diabetes", "hypertension"]
+  },
+  "caregivers": [
+    {"name": "Sarah Whitfield", "relation": "daughter", "contact": "sarah@example.com"},
+    {"name": "Marcus Whitfield", "relation": "son", "contact": "marcus@example.com"},
+    {"name": "Priya Whitfield", "relation": "daughter-in-law", "contact": "priya@example.com"}
+  ]
+}

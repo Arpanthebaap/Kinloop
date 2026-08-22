@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Metformin 500mg",
+    "person": "Eleanor Whitfield",
+    "days_supply_remaining": 3,
+    "pharmacy": "Riverside Pharmacy",
+    "prescriber": "Dr. Patel"
+  },
+  {
+    "name": "Lisinopril 10mg",
+    "person": "Eleanor Whitfield",
+    "days_supply_remaining": 21,
+    "pharmacy": "Riverside Pharmacy",
+    "prescriber": "Dr. Osei"
+  },
+  {
+    "name": "Atorvastatin 20mg",
+    "person": "Eleanor Whitfield",
+    "days_supply_remaining": 0,
+    "pharmacy": "Riverside Pharmacy",
+    "prescriber": "Dr. Patel"
+  }
+]
