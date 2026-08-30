@@ -1,10 +1,19 @@
-__pycache__/
-*.pyc
+# Environment and Build files
 .venv/
-venv/
-.env
-*.egg-info/
-.pytest_cache/
+__pycache__/
 .aws-sam/
+*.pyc
+
+# Local Run Output Files
 out.json
-.DS_Store
+out_lambda.json
+out_test.json
+out_test_titan.json
+out_test_titan2.json
+out_test_titan_embed.json
+out_test_titan_embed2.json
+
+# Demo Assets (Private)
+docs/demo_script.md
+docs/kinloop-slides.pptx
+docs/video_voiceover.md

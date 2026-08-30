@@ -44,7 +44,7 @@ src/kinloop/
 sample_data/     a realistic demo family (see it trigger real decisions)
 dashboard/       read-only static dashboard for the day's activity
 deploy/          SAM template, DynamoDB seeding script, optional AgentCore path
-docs/            architecture diagram, text description
+docs/            architecture diagram, text description, demo video script
 tests/           unit tests for the deterministic logic behind every tool
 ```
 
@@ -56,6 +56,11 @@ pip install -r requirements.txt
 export AWS_REGION=us-east-1   # region with Bedrock Nova model access enabled
 python -m kinloop.main
 ```
+
+No Bedrock access yet (e.g. a brand-new AWS account still in verification)?
+Run `python -m kinloop.main --dry-run` instead — exercises the real
+deterministic logic behind every tool with no LLM call. See
+[`docs/dry_run.md`](docs/dry_run.md) for exactly what that does and doesn't prove.
 
 Open `dashboard/index.html` in a browser to see the day's findings laid out
 (it ships with the sample data baked in as a fallback, so it renders even

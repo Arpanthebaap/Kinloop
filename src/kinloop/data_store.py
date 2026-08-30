@@ -87,8 +87,10 @@ class Store:
     def add_pending_decision(self, decision: dict) -> None:
         """Queue a decision that needs a human — this is what the
         NotifierAgent escalates and what the dashboard highlights."""
+        import uuid
+
         decision = {
-            "id": f"dec_{int(datetime.now(timezone.utc).timestamp())}",
+            "id": f"dec_{uuid.uuid4().hex[:10]}",
             "status": "pending",
             "created_at": datetime.now(timezone.utc).isoformat(),
             **decision,
